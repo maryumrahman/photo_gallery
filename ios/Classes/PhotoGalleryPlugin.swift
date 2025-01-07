@@ -314,64 +314,60 @@ public class PhotoGalleryPlugin: NSObject, FlutterPlugin {
     height: Int?,
     highQuality: Bool?,
     completion: @escaping (Data?, Error?) -> Void
-  ) {
+) {
     let manager = PHImageManager.default()
     let fetchOptions = PHFetchOptions()
     fetchOptions.predicate = self.predicateFromMediumType(mediumType: mediumType)
     fetchOptions.sortDescriptors = [
-      NSSortDescriptor(key: "creationDate", ascending: !newest),
-      NSSortDescriptor(key: "modificationDate", ascending: !newest)
+        NSSortDescriptor(key: "creationDate", ascending: !newest),
+        NSSortDescriptor(key: "modificationDate", ascending: !newest)
     ]
     if #available(iOS 9, *) {
-      fetchOptions.fetchLimit = 1
+        fetchOptions.fetchLimit = 1
     }
 
-   var assets: PHFetchResult<PHAsset>
+    let assets: PHFetchResult<PHAsset>
+    if albumId == "__ALL__" {
+        assets = PHAsset.fetchAssets(with: fetchOptions)
+    } else if let collection = self.assetCollections.first(where: { $0.localIdentifier == albumId }) {
+        assets = PHAsset.fetchAssets(in: collection, options: fetchOptions)
+    } else {
+        // Handle the case where the albumId does not match any collection
+        completion(nil, NSError(domain: "photo_gallery", code: 404, userInfo: [NSLocalizedDescriptionKey: "Album not found"]))
+        return
+    }
 
-   if albumId == "__ALL__" {
-       assets = PHAsset.fetchAssets(with: fetchOptions)
-   } else if let collection = self.assetCollections.first(where: { $0.localIdentifier == albumId }) {
-       assets = PHAsset.fetchAssets(in: collection, options: fetchOptions)
-   } else {
-       // Handle the case where the collection is nil
-       print("Error: Collection with ID \(albumId) not found")
-       // You might want to provide a default value or handle this case according to your app's logic
-       // For now, let's just assign an empty fetch result
-       assets = PHAsset.fetchAssets(with: fetchOptions)
-   }
+    guard assets.count > 0 else {
+        completion(nil, NSError(domain: "photo_gallery", code: 404, userInfo: [NSLocalizedDescriptionKey: "No media found in album"]))
+        return
+    }
 
-    if (assets.count > 0) {
-      let asset: PHAsset = assets[0]
+    let asset: PHAsset = assets[0]
 
-      let options = PHImageRequestOptions()
-      options.isSynchronous = false
-      options.version = .current
-      options.deliveryMode = (highQuality ?? false) ? .highQualityFormat : .fastFormat
-      options.isNetworkAccessAllowed = true
+    let options = PHImageRequestOptions()
+    options.isSynchronous = false
+    options.version = .current
+    options.deliveryMode = (highQuality ?? false) ? .highQualityFormat : .fastFormat
+    options.isNetworkAccessAllowed = true
 
-      let imageSize = CGSize(width: width ?? 128, height: height ?? 128)
-      manager.requestImage(
+    let imageSize = CGSize(width: width ?? 128, height: height ?? 128)
+    manager.requestImage(
         for: asset,
         targetSize: CGSize(
-          width: imageSize.width * UIScreen.main.scale,
-          height: imageSize.height * UIScreen.main.scale
+            width: imageSize.width * UIScreen.main.scale,
+            height: imageSize.height * UIScreen.main.scale
         ),
-        contentMode: PHImageContentMode.aspectFill,
-        options: options,
-        resultHandler: { (uiImage: UIImage?, info) in
-          guard let image = uiImage else {
-            completion(nil, NSError(domain: "photo_gallery", code: 404, userInfo: nil))
+        contentMode: .aspectFill,
+        options: options
+    ) { (uiImage, info) in
+        guard let image = uiImage else {
+            completion(nil, NSError(domain: "photo_gallery", code: 500, userInfo: [NSLocalizedDescriptionKey: "Failed to generate thumbnail"]))
             return
-          }
-          let bytes = image.jpegData(compressionQuality: CGFloat(80))
-          completion(bytes, nil)
         }
-      )
-      return
+        let imageData = image.jpegData(compressionQuality: 0.7)
+        completion(imageData, nil)
     }
-
-    completion(nil, NSError(domain: "photo_gallery", code: 404, userInfo: nil))
-  }
+}
 
   private func getFile(mediumId: String, mimeType: String?, completion: @escaping (String?, Error?) -> Void) {
     let manager = PHImageManager.default()
