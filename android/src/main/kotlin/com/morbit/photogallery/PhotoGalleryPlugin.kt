@@ -39,13 +39,13 @@ class PhotoGalleryPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
         // them functionally equivalent. Only one of onAttachedToEngine or registerWith will be called
         // depending on the user's project. onAttachedToEngine or registerWith must both be defined
         // in the same class.
-        @JvmStatic
-        fun registerWith(registrar: Registrar) {
-            val channel = MethodChannel(registrar.messenger(), "photo_gallery")
-            val plugin = PhotoGalleryPlugin()
-            plugin.context = registrar.activeContext()
-            channel.setMethodCallHandler(plugin)
-        }
+//        @JvmStatic
+//        fun registerWith(registrar: Registrar) {
+//            val channel = MethodChannel(registrar.messenger(), "photo_gallery")
+//            val plugin = PhotoGalleryPlugin()
+//            plugin.context = registrar.activeContext()
+//            channel.setMethodCallHandler(plugin)
+//        }
 
         const val imageType = "image"
         const val videoType = "video"
